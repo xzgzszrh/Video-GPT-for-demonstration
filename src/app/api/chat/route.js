@@ -28,7 +28,6 @@ export async function POST(req) {
   }
 
   const params = {
-    model: "claude-3-5-sonnet",
     stream: true,
     temperature: 1.0,
     messages: messages,
