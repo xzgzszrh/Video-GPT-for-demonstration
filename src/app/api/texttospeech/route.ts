@@ -3,11 +3,9 @@ export const runtime = "edge";
 export async function POST(req: Request) {
   const formData = await req.formData();
   const input = formData.get("input") as string;
+  const mode = formData.get("mode") as string;
   
-  // 根据环境变量选择TTS提供商
-  const provider = process.env.TTS_PROVIDER || 'volcano';
-  
-  if (provider === 'openai') {
+  if (mode === 'openai') {
     // 使用OpenAI的TTS服务
     const response = await fetch('/api/texttospeech/route-OpenAI', {
       method: 'POST',
@@ -16,7 +14,7 @@ export async function POST(req: Request) {
     return response;
   }
   
-  // 默认使用火山引擎TTS
+  // 默认使用火山引擎TTS（克隆模式）
   const requestBody = {
     app: {
       appid: process.env.VOLCANO_APP_ID,
@@ -27,7 +25,7 @@ export async function POST(req: Request) {
       uid: "uid123"
     },
     audio: {
-      voice_type: process.env.VOLCANO_VOICE_TYPE,
+      voice_type: mode,
       encoding: "mp3",
       speed_ratio: 0.9
     },

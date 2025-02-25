@@ -2,25 +2,24 @@ import { StreamingTextResponse } from 'ai';
 
 export const runtime = "edge";
 
-const CUSTOM_API_KEY = process.env.CHAT_API_KEY;
-const CUSTOM_BASE_URL = process.env.CHAT_API_BASE_URL;
-
-const systemMessage = (lang) => {
-  // 根据语言选择对应的系统提示词，默认使用英文
-  const message = lang === 'zh' 
-    ? process.env.CHAT_SYSTEM_MESSAGE_ZH 
-    : process.env.CHAT_SYSTEM_MESSAGE_EN;
-  
-  // 如果环境变量中没有设置系统提示词，使用默认值
-  return message || 'You are a helpful AI assistant that helps users with their questions and tasks.';
+// 定义不同场景的API密钥
+const API_KEYS = {
+  demo: process.env.CHAT_API_KEY_DEMO,
+  scene1: process.env.CHAT_API_KEY_SCENE1,
+  scene2: process.env.CHAT_API_KEY_SCENE2,
+  scene3: process.env.CHAT_API_KEY_SCENE3,
 };
+
+const CUSTOM_BASE_URL = process.env.CHAT_API_BASE_URL;
 
 export async function POST(req) {
   const json = await req.json();
-  const { messages, lang, token } = json;
+  const { messages, lang, token, scene = 'demo' } = json;
 
-  // 优先级：前端传入的token > 环境变量 > 代码中的固定值
-  const apiKey = token || CUSTOM_API_KEY;
+  // 根据场景选择API密钥
+  const sceneApiKey = API_KEYS[scene];
+  // 优先级：前端传入的token > 场景对应的密钥
+  const apiKey = token || sceneApiKey;
 
   if (!apiKey) {
     return Response.json({
@@ -32,7 +31,7 @@ export async function POST(req) {
     model: "claude-3-5-sonnet",
     stream: true,
     temperature: 1.0,
-    messages: [{ role: "system", content: systemMessage(lang) }].concat(messages),
+    messages: messages,
     max_tokens: 2000,
   };
   

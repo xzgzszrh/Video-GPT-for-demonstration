@@ -7,13 +7,16 @@ import useMediaRecorder from "@wmik/use-media-recorder";
 import mergeImages from "merge-images";
 import { useLocalStorage } from "../lib/use-local-storage";
 
-const INTERVAL = 500;
-const IMAGE_WIDTH = 512;
-const IMAGE_QUALITY = 0.6;
-const COLUMNS = 4;
-const MAX_SCREENSHOTS = 60;
-const SILENCE_DURATION = 2500;
-const SILENT_THRESHOLD = -30;
+// 默认值
+const DEFAULT_SETTINGS = {
+  interval: 1000,
+  imageWidth: 512,
+  imageQuality: 0.6,
+  columns: 4,
+  maxScreenshots: 1,
+  silenceDuration: 2500,
+  silentThreshold: -30,
+};
 
 const transparentPixel =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wcAAwAB/2lXzAAAACV0RVh0ZGF0ZTpjcmVhdGU9MjAyMy0xMC0xOFQxNTo0MDozMCswMDowMEfahTAAAAAldEVYdGRhdGU6bW9kaWZ5PTIwMjMtMTAtMThUMTU6NDA6MzArMDA6MDBa8cKfAAAAAElFTkSuQmCC";
@@ -73,9 +76,9 @@ async function uploadImageToFreeImageHost(base64Image) {
 
 async function imagesGrid({
   base64Images,
-  columns = COLUMNS,
-  gridImageWidth = IMAGE_WIDTH,
-  quality = IMAGE_QUALITY,
+  columns = 4,
+  gridImageWidth = 512,
+  quality = 0.6,
 }) {
   if (!base64Images.length) {
     return transparentPixel;
@@ -119,6 +122,12 @@ export default function Chat() {
   const [volumePercentage, setVolumePercentage] = useState(0);
   const [token, setToken] = useLocalStorage("ai-token", "");
   const [lang, setLang] = useLocalStorage("lang", "");
+  const [voiceMode, setVoiceMode] = useLocalStorage("voice-mode", "clone");
+  const [scene, setScene] = useLocalStorage("scene", "demo");
+
+  // 参数设置状态
+  const [settings, setSettings] = useLocalStorage("video-settings", DEFAULT_SETTINGS);
+
   const isBusy = useRef(false);
   const screenshotsRef = useRef([]);
   const videoRef = useRef();
@@ -127,8 +136,8 @@ export default function Chat() {
   const audio = useSilenceAwareRecorder({
     onDataAvailable: onSpeech,
     onVolumeChange: setCurrentVolume,
-    silenceDuration: SILENCE_DURATION,
-    silentThreshold: SILENT_THRESHOLD,
+    silenceDuration: settings.silenceDuration,
+    silentThreshold: settings.silentThreshold,
     minDecibels: -100,
   });
 
@@ -182,10 +191,13 @@ export default function Chat() {
     setPhase("user: uploading video captures");
 
     // Keep only the last XXX screenshots
-    screenshotsRef.current = screenshotsRef.current.slice(-MAX_SCREENSHOTS);
+    screenshotsRef.current = screenshotsRef.current.slice(-settings.maxScreenshots);
 
     const imageUrl = await imagesGrid({
       base64Images: screenshotsRef.current,
+      columns: settings.columns,
+      gridImageWidth: settings.imageWidth,
+      quality: settings.imageQuality,
     });
 
     screenshotsRef.current = [];
@@ -208,7 +220,8 @@ export default function Chat() {
         },
       ],
     });
-    
+
+    // same here
   }
 
   const { messages, append, reload, isLoading } = useChat({
@@ -217,6 +230,7 @@ export default function Chat() {
       id,
       token,
       lang,
+      scene,
     },
     async onFinish(message) {
       setPhase("assistant: processing text to speech");
@@ -227,6 +241,7 @@ export default function Chat() {
       const texttospeechFormData = new FormData();
       texttospeechFormData.append("input", message.content);
       texttospeechFormData.append("token", token);
+      texttospeechFormData.append("mode", voiceMode);
 
       const response = await fetch("/api/texttospeech", {
         method: "POST",
@@ -255,7 +270,7 @@ export default function Chat() {
   useEffect(() => {
     const captureFrame = () => {
       if (video.status === "recording" && audio.isRecording) {
-        const targetWidth = IMAGE_WIDTH;
+        const targetWidth = settings.imageWidth;
 
         const videoNode = videoRef.current;
         const canvasNode = canvasRef.current;
@@ -278,7 +293,7 @@ export default function Chat() {
             canvasNode.height
           );
           // Compress and convert image to JPEG format
-          const quality = 1; // Adjust the quality as needed, between 0 and 1
+          const quality = settings.imageQuality;
           const base64Image = canvasNode.toDataURL("image/jpeg", quality);
 
           if (base64Image !== "data:,") {
@@ -288,12 +303,12 @@ export default function Chat() {
       }
     };
 
-    const intervalId = setInterval(captureFrame, INTERVAL);
+    const intervalId = setInterval(captureFrame, settings.interval);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [video.status, audio.isRecording]);
+  }, [video.status, audio.isRecording, settings.interval]);
 
   useEffect(() => {
     if (!audio.isRecording) {
@@ -320,93 +335,89 @@ export default function Chat() {
     .filter((it) => it.role === "assistant")
     .pop();
 
-    return (
-      <>
-        <canvas ref={canvasRef} style={{ display: "none" }} />
-        <div className="antialiased w-screen h-screen p-4 flex flex-col justify-center items-center bg-black">
-          <div className="w-full h-full sm:container sm:h-auto grid grid-rows-[auto_1fr] grid-cols-[1fr] sm:grid-cols-[2fr_1fr] sm:grid-rows-[1fr] justify-content-center bg-black">
-            <div className="relative">
-              <video
-                ref={videoRef}
-                className="h-auto w-full aspect-[4/3] object-cover rounded-[1rem] bg-gray-900"
-                autoPlay
-              />
-              {audio.isRecording ? (
-                <div className="w-16 h-16 absolute bottom-4 left-4 flex justify-center items-center">
-                  <div
-                    className="w-16 h-16 bg-red-500 opacity-50 rounded-full"
-                    style={{
-                      transform: `scale(${Math.pow(volumePercentage, 4).toFixed(
-                        4
-                      )})`,
-                    }}
-                  ></div>
-                </div>
-              ) : (
-                <div className="w-16 h-16 absolute bottom-4 left-4 flex justify-center items-center cursor-pointer">
-                  <div className="text-5xl text-red-500 opacity-50">⏸</div>
+  return (
+    <>
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+      <div className="antialiased w-screen h-screen p-4 flex flex-col justify-center items-center bg-black">
+        <div className="w-full h-full sm:container sm:h-auto grid grid-rows-[auto_1fr] grid-cols-[1fr] sm:grid-cols-[2fr_1fr] sm:grid-rows-[1fr] justify-content-center bg-black">
+          <div className="relative">
+            <video
+              ref={videoRef}
+              className="h-auto w-full aspect-[4/3] object-cover rounded-[1rem] bg-gray-900"
+              autoPlay
+            />
+            {audio.isRecording ? (
+              <div className="w-16 h-16 absolute bottom-4 left-4 flex justify-center items-center">
+                <div
+                  className="w-16 h-16 bg-red-500 opacity-50 rounded-full"
+                  style={{
+                    transform: `scale(${Math.pow(volumePercentage, 4).toFixed(
+                      4
+                    )})`,
+                  }}
+                ></div>
+              </div>
+            ) : (
+              <div className="w-16 h-16 absolute bottom-4 left-4 flex justify-center items-center cursor-pointer">
+                <div className="text-5xl text-red-500 opacity-50">⏸</div>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col items-start justify-start p-12 text-md leading-relaxed relative">
+            <div className="text-left mb-4 w-full">
+              <h1 className="text-base font-normal text-blue-400">西安高新一中实验中学</h1>
+              <h2 className="text-4xl text-white font-bold mt-2">智能驾驶助手</h2>
+            </div>
+            <div className="flex-grow flex items-center justify-center w-full">
+              <div className="text-xl lg:text-2xl text-white leading-relaxed">
+                {lastAssistantMessage?.content}
+              </div>
+              {isLoading && (
+                <div className="absolute left-50 top-50 w-8 h-8 ">
+                  <div className="w-6 h-6 -mr-3 -mt-3 rounded-full bg-cyan-500 animate-ping" />
                 </div>
               )}
             </div>
-            <div className="flex flex-col items-start justify-start p-12 text-md leading-relaxed relative">
-              <div className="text-left mb-4 w-full">
-                <h1 className="text-base font-normal text-blue-400">西安高新一中实验中学</h1>
-                <h2 className="text-4xl text-white font-bold mt-2">智能驾驶员助理</h2>
-              </div>
-              <div className="flex-grow flex items-center justify-center w-full">
-                <div className="text-xl lg:text-2xl text-white leading-relaxed">
-                  {lastAssistantMessage?.content}
-                </div>
-                {isLoading && (
-                  <div className="absolute left-50 top-50 w-8 h-8 ">
-                    <div className="w-6 h-6 -mr-3 -mt-3 rounded-full bg-cyan-500 animate-ping" />
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
-          <div className="flex flex-wrap justify-center p-4 opacity-50 gap-2">
-            {isStarted ? (
-              <button
-                className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
-                onClick={stopRecording}
-              >
-                Stop session
-              </button>
-            ) : (
-              <button
-                className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
-                onClick={startRecording}
-              >
-                开始对话
-              </button>
-            )}
+        </div>
+        <div className="flex flex-wrap justify-center p-4 opacity-50 gap-2">
+          {isStarted ? (
             <button
               className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
-              onClick={() => reload()}
+              onClick={stopRecording}
             >
-              重新生成
+              停止会话
             </button>
+          ) : (
             <button
               className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
-              onClick={() => setDisplayDebug((p) => !p)}
+              onClick={startRecording}
             >
-              Debug
+              开始对话
             </button>
-            <input
-              className="px-4 py-2 bg-gray-700 rounded-md"
-              value={lang}
-              placeholder="你的昵称（字母或数字组合）"
-              onChange={(e) => setLang(e.target.value)}
-            />
-            <input
-              type="password"
-              className="px-4 py-2 bg-gray-700 rounded-md"
-              value={token}
-              placeholder="角色编号（通常不用填写）"
-              onChange={(e) => setToken(e.target.value)}
-            />
-          </div>
+          )}
+          <button
+            className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
+            onClick={() => reload()}
+          >
+            重新生成
+          </button>
+          <button
+            className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
+            onClick={() => setDisplayDebug((p) => !p)}
+          >
+            调试面板
+          </button>
+          <select
+            className="px-4 py-2 bg-gray-700 rounded-md text-white"
+            value={scene}
+            onChange={(e) => setScene(e.target.value)}
+          >
+            <option value="demo">演示场景</option>
+            <option value="scene1">场景一</option>
+            <option value="scene2">场景二</option>
+            <option value="scene3">场景三</option>
+          </select>
         </div>
         <div
           className={`bg-[rgba(20,20,20,0.8)] backdrop-blur-xl p-8 rounded-sm absolute left-0 top-0 bottom-0 transition-all w-[75vw] sm:w-[33vw] ${
@@ -419,25 +430,142 @@ export default function Chat() {
           >
             ⛌
           </div>
-          <div className="space-y-8">
+          <div className="space-y-8 h-full overflow-y-auto pr-4" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
             <div className="space-y-2">
-              <div className="font-semibold opacity-50">Phase:</div>
+              <div className="font-semibold opacity-50">当前状态：</div>
               <p>{phase}</p>
             </div>
             <div className="space-y-2">
-              <div className="font-semibold opacity-50">Transcript:</div>
+              <div className="font-semibold opacity-50">语音模式：</div>
+              <div className="flex gap-2">
+                <button
+                  className={`px-4 py-2 rounded-md ${
+                    voiceMode === "clone"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                  onClick={() => setVoiceMode("clone")}
+                >
+                  克隆模式
+                </button>
+                <button
+                  className={`px-4 py-2 rounded-md ${
+                    voiceMode === "openai"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                  onClick={() => setVoiceMode("openai")}
+                >
+                  原声模式
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="font-semibold opacity-50">语音识别结果：</div>
               <p>{transcription || "--"}</p>
             </div>
             <div className="space-y-2">
-              <div className="font-semibold opacity-50">Captures:</div>
+              <div className="font-semibold opacity-50">视频捕获：</div>
               <img
                 className="object-contain w-full border border-gray-500"
-                alt="Grid"
+                alt="视频网格"
                 src={imagesGridUrl || transparentPixel}
               />
             </div>
+            <div className="space-y-4">
+              <div className="font-semibold opacity-50">参数设置：</div>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">截图间隔 (毫秒)</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.interval}
+                    onChange={(e) =>
+                      setSettings({ ...settings, interval: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">图像宽度 (像素)</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.imageWidth}
+                    onChange={(e) =>
+                      setSettings({ ...settings, imageWidth: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">图像质量 (0-1)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="1"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.imageQuality}
+                    onChange={(e) =>
+                      setSettings({ ...settings, imageQuality: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">网格列数</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.columns}
+                    onChange={(e) =>
+                      setSettings({ ...settings, columns: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">最大截图数量</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.maxScreenshots}
+                    onChange={(e) =>
+                      setSettings({ ...settings, maxScreenshots: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">静音持续时间 (毫秒)</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.silenceDuration}
+                    onChange={(e) =>
+                      setSettings({ ...settings, silenceDuration: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm opacity-70 mb-1">静音阈值 (分贝)</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
+                    value={settings.silentThreshold}
+                    onChange={(e) =>
+                      setSettings({ ...settings, silentThreshold: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <button
+                  className="px-4 py-2 bg-blue-500 rounded-md text-white"
+                  onClick={() => setSettings(DEFAULT_SETTINGS)}
+                >
+                  重置为默认值
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </>
-    );
-  }    
+      </div>
+    </>
+  );
+}
