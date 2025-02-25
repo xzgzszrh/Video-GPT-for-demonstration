@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音色训练</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input,
+        button {
+            margin: 10px 0;
+        }
+
+        #status,
+        #result {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>音色训练</h1>
+
+    <form id="uploadForm">
+        <label for="speakerId">音色ID：</label>
+        <input type="text" id="speakerId" required><br>
+
+        <label for="audioFile">上传音频：</label>
+        <input type="file" id="audioFile" accept=".wav,.mp3,.ogg,.m4a,.aac,.pcm" required><br>
+
+        <button type="submit">上传训练</button>
+    </form>
+
+    <button id="checkStatus">查询状态</button>
+
+    <div id="status"></div>
+    <div id="result"></div>
+
+    <script>
+        const API_BASE_URL = 'https://openspeech.bytedance.com';
+        const TOKEN = 'u897IoSs7vxhRsN3z6ntlPbbBhFHSP0c';
+        const APPID = '9032306093';
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const speakerId = document.getElementById('speakerId').value;
+            const audioFile = document.getElementById('audioFile').files[0];
+
+            if (!audioFile) {
+                alert('请选择音频文件');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const audioBase64 = event.target.result.split(',')[1];
+                const fileExtension = audioFile.name.split('.').pop().toLowerCase();
+
+                // 确定 audio_format
+                let audioFormat = fileExtension;
+                if (audioFormat === 'pcm' || audioFormat === 'm4a') {
+                    // 对于 pcm 和 m4a，必须指定 audio_format
+                } else {
+                    // 对于其他格式，audio_format 是可选的，但我们仍然提供它以提高准确性
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/mega_tts/audio/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer; ${TOKEN}`,
+                            'Resource-Id': 'volc.megatts.voiceclone',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            appid: APPID,
+                            speaker_id: speakerId,
+                            audios: [{
+                                audio_bytes: audioBase64,
+                                audio_format: audioFormat
+                            }],
+                            source: 2
+                        })
+                    });
+
+                    const result = await response.json();
+                    document.getElementById('result').innerHTML = `上传结果：${JSON.stringify(result)}`;
+                } catch (error) {
+                    console.error('上传失败:', error);
+                    document.getElementById('result').innerHTML = `上传失败：${error.message}`;
+                }
+            };
+            reader.readAsDataURL(audioFile);
+        });
+
+    </script>
+</body>
+
+</html>
