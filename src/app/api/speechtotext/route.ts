@@ -87,7 +87,7 @@ async function baiduSpeechToText(file: File) {
     const base64Data = btoa(String.fromCharCode.apply(null, buffer));
     
     // 准备请求参数
-    const speechLength = buffer.length;
+    const speechLength = arrayBuffer.byteLength; // 使用音频数据的字节长度
     const cuid = await generateUniqueId(); // 生成唯一标识符
     
     // 构建请求体
@@ -102,7 +102,7 @@ async function baiduSpeechToText(file: File) {
       dev_pid: 80001 // 添加dev_pid参数，值为80001，表示识别普通话
     };
     
-    console.log(`[STT] Baidu API request parameters: format=${requestBody.format}, rate=${requestBody.rate}, channel=${requestBody.channel}, speech length=${requestBody.len}`);
+    console.log(`[STT] Baidu API request parameters: format=${requestBody.format}, rate=${requestBody.rate}, channel=${requestBody.channel}, speech length=${requestBody.len} bytes`);
     
     // 发送请求到百度API
     const response = await fetch('https://vop.baidu.com/pro_api', {

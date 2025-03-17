@@ -243,9 +243,12 @@ export default function Chat({ isDemo = false }) {
 
     setImagesGridUrl(imageUrl);
 
-    // 调用情绪识别API
-    try {
-      const emotionResponse = await fetch("/api/emotion", {
+    setPhase("user: 处理情绪识别和聊天");
+    
+    // 并行处理情绪识别和聊天请求
+    const [emotionPromise, chatPromise] = await Promise.all([
+      // 情绪识别请求
+      fetch("/api/emotion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -253,28 +256,35 @@ export default function Chat({ isDemo = false }) {
           image_url: uploadUrl,
           token,
         }),
-      });
-      const emotionData = await emotionResponse.json();
-      setEmotionScore(emotionData.score);
-    } catch (error) {
-      console.error("情绪识别失败:", error);
-      setEmotionScore(null);
-    }
+      }).then(res => res.json())
+      .catch(error => {
+        console.error("情绪识别失败:", error);
+        return { score: null };
+      }),
+      
+      // 聊天请求
+      append({
+        role: "user",
+        content: [
+          { type: "text", text: text },
+          {
+            type: "image_url",
+            image_url: {
+              url: uploadUrl,
+            },
+          },
+        ],
+      })
+    ]);
+
+    // 处理情绪识别结果
+    setEmotionScore(emotionPromise.score);
 
     setPhase("user: processing completion");
 
-    await append({
-      role: "user",
-      content: [
-        { type: "text", text: text },
-        {
-          type: "image_url",
-          image_url: {
-            url: uploadUrl,
-          },
-        },
-      ],
-    });
+    await chatPromise;
+
+    setPhase("assistant: processing text to speech");
 
     // same here
   }
