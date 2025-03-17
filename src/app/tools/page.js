@@ -13,6 +13,11 @@ export default function ToolsPage() {
       path: "/tools/voice-clone",
     },
     {
+      title: "人脸情绪分析工具",
+      description: "使用人工智能接口进行人脸情绪分析，支持上传图片和识别情绪",
+      path: "/tools/face-emotion",
+    },
+    {
       title: "环境变量编辑器",
       description: "编辑应用程序的环境变量，方便配置API密钥和其他设置",
       path: "/tools/env-editor",
