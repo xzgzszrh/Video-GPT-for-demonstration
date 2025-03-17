@@ -8,14 +8,15 @@ import mergeImages from "merge-images";
 import { useLocalStorage } from "../lib/use-local-storage";
 import { translations } from "../lib/i18n";
 import Image from "next/image";
+import OnboardingModal from "./components/OnboardingModal";
 
-// 默认值
+// 默认值 - 公开版修改了截图间隔和最大截图数量
 const DEFAULT_SETTINGS = {
-  interval: 1000,
+  interval: 500, // 修改为500ms
   imageWidth: 512,
   imageQuality: 0.6,
   columns: 4,
-  maxScreenshots: 1,
+  maxScreenshots: 20, // 修改为20
   silenceDuration: 2500,
   silentThreshold: -30,
 };
@@ -142,11 +143,10 @@ async function imagesGrid({
   });
 }
 
-export default function Chat({ isDemo = false }) {
+export default function PublicChat() {
   const id = useId();
   const maxVolumeRef = useRef(0);
   const minVolumeRef = useRef(-100);
-  const [displayDebug, setDisplayDebug] = useState(false);
   const [displayTeamInfo, setDisplayTeamInfo] = useState(false);
   const [isStarted, setIsStarted] = useState(false);
   const [phase, setPhase] = useState("not inited");
@@ -157,12 +157,16 @@ export default function Chat({ isDemo = false }) {
   const [token, setToken] = useLocalStorage("ai-token", "");
   const [lang, setLang] = useLocalStorage("lang", "zh");
   const [interfaceLang, setInterfaceLang] = useLocalStorage("interface-lang", "zh");
-  const [voiceMode, setVoiceMode] = useLocalStorage("voice-mode", "clone");
-  const [scene, setScene] = useLocalStorage("scene", "demo");
+  // 每次打开都显示引导模态框，而不是只有首次使用时
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  // 默认使用克隆模式
+  const voiceMode = "clone";
+  // 默认使用场景三
+  const scene = "scene3";
   const [emotionScore, setEmotionScore] = useState(null);
 
-  // 参数设置状态
-  const [settings, setSettings] = useLocalStorage("video-settings", DEFAULT_SETTINGS);
+  // 使用固定的设置
+  const settings = DEFAULT_SETTINGS;
 
   const isBusy = useRef(false);
   const screenshotsRef = useRef([]);
@@ -385,6 +389,24 @@ export default function Chat({ isDemo = false }) {
     }
   }, [currentVolume, audio.isRecording]);
 
+  useEffect(() => {
+    // 检查是否是首次访问
+    if (!showOnboarding) {
+      // 如果不是首次访问，自动请求摄像头和麦克风权限
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices
+          .getUserMedia({ video: true, audio: true })
+          .then((stream) => {
+            // 获取权限后立即停止流，因为我们只是想要请求权限
+            stream.getTracks().forEach((track) => track.stop());
+          })
+          .catch((error) => {
+            console.error("访问媒体设备时出错:", error);
+          });
+      }
+    }
+  }, [showOnboarding]);
+
   const lastAssistantMessage = messages
     .filter((it) => it.role === "assistant")
     .pop();
@@ -392,6 +414,13 @@ export default function Chat({ isDemo = false }) {
   return (
     <>
       <canvas ref={canvasRef} style={{ display: "none" }} />
+      {/* Onboarding Modal */}
+      <OnboardingModal 
+        isOpen={showOnboarding} 
+        onClose={() => setShowOnboarding(false)} 
+        interfaceLang={interfaceLang} 
+        setInterfaceLang={setInterfaceLang} 
+      />
       <div className="antialiased w-screen h-screen p-4 flex flex-col justify-center items-center bg-black">
         <div className="w-full h-full sm:container sm:h-auto grid grid-rows-[auto_1fr] grid-cols-[1fr] sm:grid-cols-[2fr_1fr] sm:grid-rows-[1fr] justify-content-center bg-black">
           <div className="relative">
@@ -466,235 +495,36 @@ export default function Chat({ isDemo = false }) {
           </button>
           <button
             className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
-            onClick={() => setDisplayDebug((p) => !p)}
-          >
-            {translations[interfaceLang].debugPanel}
-          </button>
-          <button
-            className="px-4 py-2 bg-gray-700 rounded-md disabled:opacity-50"
             onClick={() => setDisplayTeamInfo(true)}
           >
-            {interfaceLang === 'en' ? 'Team Info' : '制作团队'}
+            {interfaceLang === 'en' ? 'Team Info' : '团队信息'}
           </button>
-          <select
-            className="px-4 py-2 bg-gray-700 rounded-md text-white"
-            value={scene}
-            onChange={(e) => setScene(e.target.value)}
-          >
-            <option value="demo">{translations[interfaceLang].demoScene}</option>
-            <option value="scene1">{translations[interfaceLang].scene1}</option>
-            <option value="scene2">{translations[interfaceLang].scene2}</option>
-            <option value="scene3">{translations[interfaceLang].scene3}</option>
-          </select>
-        </div>
-        <div
-          className={`bg-[rgba(20,20,20,0.8)] backdrop-blur-xl p-8 rounded-sm absolute left-0 top-0 bottom-0 transition-all w-[75vw] sm:w-[33vw] ${
-            displayDebug ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div
-            className="absolute z-10 top-4 right-4 opacity-50 cursor-pointer"
-            onClick={() => setDisplayDebug(false)}
-          >
-            ⛌
-          </div>
-          <div className="space-y-8 h-full overflow-y-auto pr-4" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{translations[interfaceLang].currentStatus}：</div>
-              <p>{phase}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{interfaceLang === 'en' ? 'API Connection Status:' : 'API\u8fde\u63a5\u72b6\u6001\uff1a'}</div>
-              <button
-                className="px-4 py-2 bg-gray-700 rounded-md"
-                onClick={async () => {
-                  try {
-                    const response = await fetch('/api/chat', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        messages: [{ role: 'user', content: 'test' }],
-                        token,
-                        scene
-                      })
-                    });
-                    if (response.ok) {
-                      alert(interfaceLang === 'en' ? 'API Connection Normal' : 'API\u8fde\u63a5\u6b63\u5e38');
-                    } else {
-                      throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                  } catch (error) {
-                    alert(interfaceLang === 'en' ? `API Connection Error: ${error.message}` : `API\u8fde\u63a5\u5f02\u5e38\uff1a ${error.message}`);
-                  }
-                }}
-              >
-                {interfaceLang === 'en' ? 'Test API Connection' : '\u68c0\u6d4bAPI\u8fde\u63a5'}
-              </button>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{translations[interfaceLang].interfaceLanguage}：</div>
-              <div className="flex gap-2">
-                <button
-                  className={`px-4 py-2 rounded-md ${
-                    interfaceLang === "zh"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-700 text-gray-300"
-                  }`}
-                  onClick={() => setInterfaceLang("zh")}
-                >
-                  {translations[interfaceLang].chinese}
-                </button>
-                <button
-                  className={`px-4 py-2 rounded-md ${
-                    interfaceLang === "en"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-700 text-gray-300"
-                  }`}
-                  onClick={() => setInterfaceLang("en")}
-                >
-                  {translations[interfaceLang].english}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{translations[interfaceLang].voiceMode}：</div>
-              <div className="flex gap-2">
-                <button
-                  className={`px-4 py-2 rounded-md ${
-                    voiceMode === "clone"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-700 text-gray-300"
-                  }`}
-                  onClick={() => setVoiceMode("clone")}
-                >
-                  {translations[interfaceLang].cloneMode}
-                </button>
-                <button
-                  className={`px-4 py-2 rounded-md ${
-                    voiceMode === "openai"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-700 text-gray-300"
-                  }`}
-                  onClick={() => setVoiceMode("openai")}
-                >
-                  {translations[interfaceLang].originalMode}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{translations[interfaceLang].speechResult}：</div>
-              <p>{transcription || "--"}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">情绪预测：
-                <span className="inline-block ml-2 w-4 h-4 rounded-full" style={{ backgroundColor: getEmotionColor(emotionScore) }}></span>
-                {emotionScore !== null ? getEmotionEmoji(emotionScore) : ""}
-              </div>
-              <p>{emotionScore !== null ? emotionScore : "识别失败"}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{translations[interfaceLang].videoCapture}：</div>
-              <img
-                className="object-contain w-full border border-gray-500"
-                alt="视频网格"
-                src={imagesGridUrl || transparentPixel}
-              />
-            </div>
-            <div className="space-y-4">
-              <div className="font-semibold opacity-50">{translations[interfaceLang].paramSettings}：</div>
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].captureInterval}</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.interval}
-                    onChange={(e) =>
-                      setSettings({ ...settings, interval: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].imageWidth}</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.imageWidth}
-                    onChange={(e) =>
-                      setSettings({ ...settings, imageWidth: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].imageQuality}</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="1"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.imageQuality}
-                    onChange={(e) =>
-                      setSettings({ ...settings, imageQuality: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].gridColumns}</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.columns}
-                    onChange={(e) =>
-                      setSettings({ ...settings, columns: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].maxScreenshots}</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.maxScreenshots}
-                    onChange={(e) =>
-                      setSettings({ ...settings, maxScreenshots: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].silenceDuration}</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.silenceDuration}
-                    onChange={(e) =>
-                      setSettings({ ...settings, silenceDuration: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm opacity-70 mb-1">{translations[interfaceLang].silenceThreshold}</label>
-                  <input
-                    type="number"
-                    className="w-full px-3 py-2 bg-gray-700 rounded-md"
-                    value={settings.silentThreshold}
-                    onChange={(e) =>
-                      setSettings({ ...settings, silentThreshold: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <button
-                  className="px-4 py-2 bg-blue-500 rounded-md text-white"
-                  onClick={() => setSettings(DEFAULT_SETTINGS)}
-                >
-                  {translations[interfaceLang].resetDefault}
-                </button>
-              </div>
-            </div>
+          {/* 语言切换按钮 */}
+          <div className="flex gap-2">
+            <button
+              className={`px-4 py-2 rounded-md ${
+                interfaceLang === "zh"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-700 text-gray-300"
+              }`}
+              onClick={() => setInterfaceLang("zh")}
+            >
+              {translations[interfaceLang].chinese}
+            </button>
+            <button
+              className={`px-4 py-2 rounded-md ${
+                interfaceLang === "en"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-700 text-gray-300"
+              }`}
+              onClick={() => setInterfaceLang("en")}
+            >
+              {translations[interfaceLang].english}
+            </button>
           </div>
         </div>
 
-        {/* 制作团队弹窗 */}
+        {/* 团队信息弹窗 */}
         {displayTeamInfo && (
           <div className="fixed inset-0 flex items-center justify-center z-50">
             <div 
@@ -717,7 +547,7 @@ export default function Chat({ isDemo = false }) {
               <div className="flex justify-center">
                 <Image 
                   src="/schoollogo.png" 
-                  alt="学校标志" 
+                  alt="学校logo" 
                   width={150} 
                   height={150} 
                   className="mx-auto"
