@@ -13,6 +13,11 @@ export default function ToolsPage() {
       path: "/tools/voice-clone",
     },
     {
+      title: "环境变量编辑器",
+      description: "编辑应用程序的环境变量，方便配置API密钥和其他设置",
+      path: "/tools/env-editor",
+    },
+    {
       title: "API状态监控",
       description: "用于监控API接口状态，帮助开发者快速排查API相关问题",
       path: "/tools/api-status",
