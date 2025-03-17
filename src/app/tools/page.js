@@ -8,6 +8,11 @@ export default function ToolsPage() {
       path: "/tools/tts",
     },
     {
+      title: "语音克隆训练工具",
+      description: "使用火山引擎接口进行语音克隆训练，支持自定义语音和文本",
+      path: "/tools/voice-clone",
+    },
+    {
       title: "API状态监控",
       description: "用于监控API接口状态，帮助开发者快速排查API相关问题",
       path: "/tools/api-status",
