@@ -27,7 +27,8 @@ export const translations = {
     resetDefault: "重置为默认值",
     interfaceLanguage: "界面语言",
     chinese: "中文",
-    english: "英文"
+    english: "英文",
+    tools: "工具箱"
   },
   en: {
     title: "Xi'an Gaoxin No.1 High School",
@@ -57,6 +58,7 @@ export const translations = {
     resetDefault: "Reset to Default",
     interfaceLanguage: "Interface Language",
     chinese: "Chinese",
-    english: "English"
+    english: "English",
+    tools: "Tools"
   }
 };

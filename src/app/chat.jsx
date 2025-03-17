@@ -8,6 +8,7 @@ import mergeImages from "merge-images";
 import { useLocalStorage } from "../lib/use-local-storage";
 import { translations } from "../lib/i18n";
 import Image from "next/image";
+import Link from "next/link";
 
 // 默认值
 const DEFAULT_SETTINGS = {
@@ -476,16 +477,6 @@ export default function Chat({ isDemo = false }) {
           >
             {interfaceLang === 'en' ? 'Team Info' : '制作团队'}
           </button>
-          <select
-            className="px-4 py-2 bg-gray-700 rounded-md text-white"
-            value={scene}
-            onChange={(e) => setScene(e.target.value)}
-          >
-            <option value="demo">{translations[interfaceLang].demoScene}</option>
-            <option value="scene1">{translations[interfaceLang].scene1}</option>
-            <option value="scene2">{translations[interfaceLang].scene2}</option>
-            <option value="scene3">{translations[interfaceLang].scene3}</option>
-          </select>
         </div>
         <div
           className={`bg-[rgba(20,20,20,0.8)] backdrop-blur-xl p-8 rounded-sm absolute left-0 top-0 bottom-0 transition-all w-[75vw] sm:w-[33vw] ${
@@ -502,34 +493,6 @@ export default function Chat({ isDemo = false }) {
             <div className="space-y-2">
               <div className="font-semibold opacity-50">{translations[interfaceLang].currentStatus}：</div>
               <p>{phase}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="font-semibold opacity-50">{interfaceLang === 'en' ? 'API Connection Status:' : 'API\u8fde\u63a5\u72b6\u6001\uff1a'}</div>
-              <button
-                className="px-4 py-2 bg-gray-700 rounded-md"
-                onClick={async () => {
-                  try {
-                    const response = await fetch('/api/chat', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        messages: [{ role: 'user', content: 'test' }],
-                        token,
-                        scene
-                      })
-                    });
-                    if (response.ok) {
-                      alert(interfaceLang === 'en' ? 'API Connection Normal' : 'API\u8fde\u63a5\u6b63\u5e38');
-                    } else {
-                      throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                  } catch (error) {
-                    alert(interfaceLang === 'en' ? `API Connection Error: ${error.message}` : `API\u8fde\u63a5\u5f02\u5e38\uff1a ${error.message}`);
-                  }
-                }}
-              >
-                {interfaceLang === 'en' ? 'Test API Connection' : '\u68c0\u6d4bAPI\u8fde\u63a5'}
-              </button>
             </div>
             <div className="space-y-2">
               <div className="font-semibold opacity-50">{translations[interfaceLang].interfaceLanguage}：</div>
@@ -555,6 +518,27 @@ export default function Chat({ isDemo = false }) {
                   {translations[interfaceLang].english}
                 </button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <div className="font-semibold opacity-50">场景选择：</div>
+              <select
+                className="px-4 py-2 bg-gray-700 rounded-md text-white w-full"
+                value={scene}
+                onChange={(e) => setScene(e.target.value)}
+              >
+                <option value="demo">{translations[interfaceLang].demoScene}</option>
+                <option value="scene1">{translations[interfaceLang].scene1}</option>
+                <option value="scene2">{translations[interfaceLang].scene2}</option>
+                <option value="scene3">{translations[interfaceLang].scene3}</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <div className="font-semibold opacity-50">工具：</div>
+              <Link href="/tools">
+                <button className="px-4 py-2 bg-gray-700 rounded-md text-white w-full hover:bg-gray-600">
+                  {translations[interfaceLang].tools}
+                </button>
+              </Link>
             </div>
             <div className="space-y-2">
               <div className="font-semibold opacity-50">{translations[interfaceLang].voiceMode}：</div>
