@@ -193,7 +193,33 @@ export default function Chat({ isDemo = false }) {
   }
 
   function stopRecording() {
-    document.location.reload();
+    // 停止任何正在进行的录音
+    if (audio.isRecording) {
+      audio.stopRecording();
+    }
+    if (video.status === "recording") {
+      video.stopRecording();
+    }
+    
+    // 释放视频流
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    
+    // 重置状态
+    setIsStarted(false);
+    setPhase("not inited");
+    isBusy.current = false;
+    screenshotsRef.current = [];
+    setTranscription("");
+    setImagesGridUrl(null);
+    setEmotionScore(null);
+    
+    // 重新加载对话
+    reload();
   }
 
   async function onSpeech(data) {
@@ -446,8 +472,8 @@ export default function Chat({ isDemo = false }) {
                 {lastAssistantMessage?.content}
               </div>
               {isLoading && (
-                <div className="absolute left-50 top-50 w-8 h-8 ">
-                  <div className="w-6 h-6 -mr-3 -mt-3 rounded-full bg-cyan-500 animate-ping" />
+                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-opacity duration-300">
+                  <div className="w-6 h-6 rounded-full bg-cyan-500 animate-ping opacity-75" />
                 </div>
               )}
             </div>
