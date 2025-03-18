@@ -14,7 +14,7 @@ const CUSTOM_BASE_URL = process.env.CHAT_API_BASE_URL;
 
 export async function POST(req) {
   const json = await req.json();
-  const { messages, lang, token, scene = 'demo' } = json;
+  const { messages, lang, token, scene = 'demo', chatId } = json;
 
   // 根据场景选择API密钥
   const sceneApiKey = API_KEYS[scene];
@@ -32,9 +32,14 @@ export async function POST(req) {
     temperature: 1.0,
     messages: messages,
     max_tokens: 2000,
+    chatId: chatId || undefined, // 添加chatId参数，如果为空则不传递
   };
   
-  console.log('Request parameters:', params);
+  console.log('Request parameters:', {
+    ...params,
+    chatId: chatId || 'not provided',
+    messages: params.messages.length + ' messages'
+  });
   
   try {
     const response = await fetch(`${CUSTOM_BASE_URL}/chat/completions`, {

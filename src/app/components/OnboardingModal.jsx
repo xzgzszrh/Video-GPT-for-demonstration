@@ -2,10 +2,15 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useLocalStorage } from "../../lib/use-local-storage";
 
 const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [nicknameError, setNicknameError] = useState(false);
+  const [chatId, setChatId] = useLocalStorage("chat-id", "");
+  const [useChatId, setUseChatId] = useLocalStorage("use-chat-id", true);
 
   // Reset to first page when modal opens
   useEffect(() => {
@@ -32,7 +37,24 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
   };
 
   const handleNext = () => {
-    if (currentPage < 3) {
+    // 如果是昵称输入页面，需要验证昵称
+    if (currentPage === 2 && useChatId) {
+      if (!nickname.trim()) {
+        setNicknameError(true);
+        return;
+      }
+      // 保存昵称作为chatId
+      setChatId(nickname.trim());
+      setNicknameError(false);
+    }
+    
+    // 如果用户选择不使用chatId，跳过昵称输入页面
+    if (currentPage === 1 && !useChatId) {
+      setCurrentPage(currentPage + 2);
+      return;
+    }
+    
+    if (currentPage < 5) {
       setCurrentPage(currentPage + 1);
     } else {
       onClose();
@@ -42,6 +64,19 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
   const handleBack = () => {
     if (currentPage > 0) {
       setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleUseChatIdToggle = (value) => {
+    setUseChatId(value);
+    if (!value) {
+      // 如果用户选择不使用chatId，清空chatId
+      setChatId("");
+      // 直接跳到下一页
+      setCurrentPage(currentPage + 2);
+    } else {
+      // 如果用户选择使用chatId，进入昵称输入页面
+      setCurrentPage(currentPage + 1);
     }
   };
 
@@ -60,7 +95,29 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
         zh: "请选择您偏好的语言。这将决定所有内容的语言。"
       }
     },
-    // Page 2: Mobile Browser Recommendation
+    // Page 2: ChatId Option
+    {
+      title: {
+        en: "Conversation Memory",
+        zh: "对话记忆功能"
+      },
+      content: {
+        en: "Would you like our AI to remember your conversation history? If yes, you'll need to provide a nickname.",
+        zh: "您希望AI记住您的对话历史吗？如果是，您需要提供一个昵称。"
+      }
+    },
+    // Page 3: Nickname Input
+    {
+      title: {
+        en: "Enter Your Nickname",
+        zh: "输入您的昵称"
+      },
+      content: {
+        en: "Please enter a nickname. This helps our AI remember your conversation history.",
+        zh: "请输入一个昵称。这将帮助AI记住您的对话历史。"
+      }
+    },
+    // Page 4: Mobile Browser Recommendation
     {
       title: {
         en: "Use Mobile Browser",
@@ -71,7 +128,7 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
         zh: "请确保您使用手机浏览器打开本网页，因为我们需要确保能够正常访问您的摄像头和麦克风。如果您不是通过手机浏览器打开的，您可以点击这里一键复制链接，粘贴到浏览器进行访问。"
       }
     },
-    // Page 3: Service Information
+    // Page 5: Service Information
     {
       title: {
         en: "Technical Demonstration",
@@ -82,7 +139,7 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
         zh: "本页面为'智能驾驶助手'的技术展示，我们的服务器位于中国，可能会由于网络问题导致的回答速度较慢，感谢您的耐心等待。"
       }
     },
-    // Page 4: Audio/Video Capture Indicator
+    // Page 6: Audio/Video Capture Indicator
     {
       title: {
         en: "Audio and Video Capture",
@@ -103,7 +160,7 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
         <div className="absolute top-0 left-0 right-0 h-1 bg-gray-800">
           <div 
             className="h-full bg-blue-500 transition-all duration-300" 
-            style={{ width: `${(currentPage + 1) * 25}%` }}
+            style={{ width: `${(currentPage + 1) * (100 / pageContent.length)}%` }}
           ></div>
         </div>
         
@@ -138,6 +195,43 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
             )}
 
             {currentPage === 1 && (
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => handleUseChatIdToggle(true)}
+                  className={`py-3 px-4 rounded-lg text-white font-medium transition-colors ${useChatId ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-700 hover:bg-gray-600"}`}
+                >
+                  {interfaceLang === "en" ? "Yes" : "是"}
+                </button>
+                <button
+                  onClick={() => handleUseChatIdToggle(false)}
+                  className={`py-3 px-4 rounded-lg text-white font-medium transition-colors ${!useChatId ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-700 hover:bg-gray-600"}`}
+                >
+                  {interfaceLang === "en" ? "No" : "否"}
+                </button>
+              </div>
+            )}
+
+            {currentPage === 2 && (
+              <div className="mt-4">
+                <input
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => {
+                    setNickname(e.target.value);
+                    if (e.target.value.trim()) setNicknameError(false);
+                  }}
+                  placeholder={interfaceLang === "en" ? "Enter your nickname" : "请输入您的昵称"}
+                  className={`w-full py-3 px-4 bg-gray-800 border ${nicknameError ? 'border-red-500' : 'border-gray-700'} rounded-lg text-white focus:outline-none focus:border-blue-500`}
+                />
+                {nicknameError && (
+                  <p className="text-red-500 mt-2">
+                    {interfaceLang === "en" ? "Please enter a nickname" : "请输入昵称"}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {currentPage === 3 && (
               <button
                 onClick={handleCopyLink}
                 className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors inline-flex items-center"
@@ -156,7 +250,7 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
               </div>
             )}
 
-            {currentPage === 3 && pageContent[currentPage].image && (
+            {currentPage === 5 && pageContent[currentPage].image && (
               <div className="mt-4 flex justify-center">
                 <div className="relative w-full max-w-xs">
                   <Image 
@@ -184,12 +278,12 @@ const OnboardingModal = ({ isOpen, onClose, interfaceLang, setInterfaceLang }) =
               <div></div> // Empty div to maintain layout
             )}
 
-            {currentPage !== 0 && (
+            {currentPage !== 0 && currentPage !== 1 && (
               <button
                 onClick={handleNext}
                 className="py-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
               >
-                {currentPage < 3 ? 
+                {currentPage < 5 ? 
                   (interfaceLang === "en" ? "Next" : "下一步") : 
                   (interfaceLang === "en" ? "Get Started" : "开始使用")
                 }
