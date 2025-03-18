@@ -43,6 +43,16 @@ export default function ToolsPage() {
       ),
     },
     {
+      title: "流程演示",
+      description: "演示智能情绪检测车机系统的工作流程，包括小脑监测、大脑分析和情绪干预等环节",
+      path: "/tools/process-demo",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+    },
+    {
       title: "环境变量编辑器",
       description: "编辑应用程序的环境变量，方便配置API密钥和其他设置",
       path: "/tools/env-editor",
