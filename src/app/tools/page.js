@@ -13,6 +13,16 @@ export default function ToolsPage() {
       ),
     },
     {
+      title: "用户画像演示",
+      description: "演示智能情绪检测车机系统的用户画像构建、事件分析和个性化干预流程",
+      path: "/tools/user-profile-demo",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+    },
+    {
       title: "语音克隆训练工具",
       description: "使用火山引擎接口进行语音克隆训练，支持自定义语音和文本",
       path: "/tools/voice-clone",
