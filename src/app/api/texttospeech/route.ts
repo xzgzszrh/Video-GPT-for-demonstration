@@ -1,25 +1,41 @@
 export const runtime = "edge";
 
 export async function POST(req: Request) {
+  // 复制请求以便后续处理
+  const clonedReq = req.clone();
+  
   const formData = await req.formData();
   const input = formData.get("input") as string;
   const mode = formData.get("mode") as string;
+  const token = formData.get("token") as string;
+  
+  // 使用环境变量中的TTS_PROVIDER配置，若存在则优先使用环境变量中的配置
+  const envProvider = process.env.TTS_PROVIDER?.toLowerCase();
+  // 优先级：环境变量中的TTS_PROVIDER > 请求输入的mode
+  const ttsProvider = envProvider || mode || 'volcano';
   
   console.log('TTS Request:', {
     input: input.substring(0, 100) + '...', // 只打印前100个字符
-    mode,
+    requestedMode: mode,
+    actualProvider: ttsProvider,
+    envProvider: envProvider || 'not set',
     timestamp: new Date().toISOString()
   });
   
-  if (mode === 'openai') {
+  if (ttsProvider === 'openai') {
     console.log('Using OpenAI TTS service');
-    // 使用OpenAI的TTS服务
-    const response = await fetch('/api/texttospeech/route-OpenAI', {
-      method: 'POST',
-      body: formData,
-    });
-    console.log('OpenAI TTS Response Status:', response.status);
-    return response;
+    try {
+      // 导入OpenAI TTS处理函数
+      const { POST: openaiTtsHandler } = await import('./route-OpenAI');
+      // 直接调用处理函数，传入复制的请求
+      return openaiTtsHandler(clonedReq);
+    } catch (error) {
+      console.error('Error calling OpenAI TTS handler:', error);
+      return Response.json({
+        error: "Failed to process OpenAI TTS request.",
+        details: error.message
+      }, { status: 500 });
+    }
   }
   
   // 默认使用火山引擎TTS（克隆模式）
