@@ -193,33 +193,7 @@ export default function Chat({ isDemo = false }) {
   }
 
   function stopRecording() {
-    // 停止任何正在进行的录音
-    if (audio.isRecording) {
-      audio.stopRecording();
-    }
-    if (video.status === "recording") {
-      video.stopRecording();
-    }
-    
-    // 释放视频流
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    
-    // 重置状态
-    setIsStarted(false);
-    setPhase("not inited");
-    isBusy.current = false;
-    screenshotsRef.current = [];
-    setTranscription("");
-    setImagesGridUrl(null);
-    setEmotionScore(null);
-    
-    // 重新加载对话
-    reload();
+    document.location.reload();
   }
 
   async function onSpeech(data) {

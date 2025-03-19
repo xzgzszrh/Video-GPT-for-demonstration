@@ -315,40 +315,7 @@ export default function PublicChat() {
   }
 
   function stopRecording() {
-    // 不使用页面刷新方式，而是手动重置所有状态
-    try {
-      // 停止任何正在进行的录音
-      if (audio.isRecording) {
-        audio.stopRecording();
-      }
-      if (video.status === "recording") {
-        video.stopRecording();
-      }
-      
-      // 释放视频流
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject;
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      
-      // 重置状态
-      setIsStarted(false);
-      setPhase("not inited");
-      isBusy.current = false;
-      setIsLoading(false);
-      screenshotsRef.current = [];
-      setTranscription("");
-      setImagesGridUrl(null);
-      setEmotionScore(null);
-      
-      // 重新加载对话
-      reload();
-    } catch (error) {
-      console.error("停止录音时出错:", error);
-      alert(interfaceLang === 'en' ? 'Error stopping recording. Please refresh the page.' : '停止录音时出错，请刷新页面。');
-    }
+    document.location.reload();
   }
 
   async function onSpeech(data) {
