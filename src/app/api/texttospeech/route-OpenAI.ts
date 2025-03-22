@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     try {
       console.log('Creating OpenAI speech...');
       const mp3 = await openai.audio.speech.create({
-        model: "gpt-4o-mini-tts",
+        model: "tts-1",
         voice: "sage",
         input,
         speed: 1.0,
