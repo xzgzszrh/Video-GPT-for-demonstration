@@ -58,7 +58,7 @@ export async function POST(req) {
         model: "gpt-4o-mini", // 使用支持视觉的模型
         messages: messages,
         max_tokens: 10,
-        temperature: 0.2 // 低温度以获得更一致的结果
+        temperature: 1.0 // 低温度以获得更一致的结果
       })
     });
     
